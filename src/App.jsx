@@ -12,7 +12,6 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import {
   Boxes,
   Edit3,
@@ -35,7 +34,6 @@ import {
   db,
   googleProvider,
   isFirebaseConfigured,
-  storage,
 } from './firebase'
 import { sampleInventory, sampleSettings } from './sampleInventory'
 import './App.css'
@@ -94,7 +92,7 @@ async function compressImage(file) {
     img.src = objectUrl
   })
 
-  const maxSide = 1600
+  const maxSide = 900
   const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(image.width * scale)
@@ -113,8 +111,16 @@ async function compressImage(file) {
         )
       },
       'image/jpeg',
-      0.78,
+      0.66,
     )
+  })
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.readAsDataURL(file)
   })
 }
 
@@ -277,7 +283,7 @@ function App() {
     }
   }
 
-  async function uploadImagesIfNeeded(itemName) {
+  async function uploadImagesIfNeeded() {
     if (imageFiles.length === 0) return form.imageUrls.slice(0, maxImages)
 
     const compressedFiles = []
@@ -291,33 +297,8 @@ function App() {
       `圖片已壓縮：${Math.round(originalSize / 1024)}KB -> ${Math.round(compressedSize / 1024)}KB`,
     )
 
-    if (!isFirebaseConfigured) {
-      const localUrls = await Promise.all(
-        compressedFiles.map(
-          (file) =>
-            new Promise((resolve) => {
-              const reader = new FileReader()
-              reader.onload = () => resolve(reader.result)
-              reader.readAsDataURL(file)
-            }),
-        ),
-      )
-      return [...form.imageUrls, ...localUrls].slice(0, maxImages)
-    }
-
-    const safeName = itemName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 48)
-    const uploadedUrls = []
-
-    for (const [index, file] of compressedFiles.entries()) {
-      const storageRef = ref(
-        storage,
-        `equipment-images/${Date.now()}-${index + 1}-${safeName || 'item'}.jpg`,
-      )
-      await uploadBytes(storageRef, file, { contentType: 'image/jpeg' })
-      uploadedUrls.push(await getDownloadURL(storageRef))
-    }
-
-    return [...form.imageUrls, ...uploadedUrls].slice(0, maxImages)
+    const localUrls = await Promise.all(compressedFiles.map(fileToDataUrl))
+    return [...form.imageUrls, ...localUrls].slice(0, maxImages)
   }
 
   async function handleSave(event) {
@@ -325,7 +306,7 @@ function App() {
 
     const finalCategory = form.category === '__new__' ? form.newCategory : form.category
     const finalLocation = form.location === '__new__' ? form.newLocation : form.location
-    const imageUrls = await uploadImagesIfNeeded(form.name)
+    const imageUrls = await uploadImagesIfNeeded()
 
     const payload = {
       name: form.name.trim(),

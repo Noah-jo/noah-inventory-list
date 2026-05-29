@@ -1,6 +1,6 @@
 # Noah Inventory List
 
-Company equipment inventory web app built with React, Vite, Firebase Firestore, Firebase Auth, and Cloud Storage for Firebase.
+Company equipment inventory web app built with React, Vite, Firebase Firestore, and Firebase Auth.
 
 ## Local Development
 
@@ -29,7 +29,6 @@ Required variables:
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
 VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_ADMIN_EMAILS=admin1@company.com,admin2@company.com
@@ -73,31 +72,30 @@ Equipment document shape:
   size: '129.7 x 77.8 x 84.5 mm',
   specs: 'Full-frame cinema camera, 4K 120p...',
   notes: 'Includes batteries and charger.',
-  imageUrls: ['https://...', 'https://...', 'https://...'],
-  imageUrl: 'https://...', // first image, kept for backward compatibility
+  imageUrls: ['data:image/jpeg;base64,...'],
+  imageUrl: 'data:image/jpeg;base64,...', // first image, kept for backward compatibility
   updatedAt: serverTimestamp()
 }
 ```
 
-## Auth And Storage
+## Auth And Images
 
 - General viewing does not require login.
-- Settings, create, edit, delete, and image upload require admin login in the UI.
+- Settings, create, edit, delete, and image upload require admin login in the UI and Firestore Rules.
 - Admin emails are configured with `VITE_ADMIN_EMAILS`.
 - Each equipment item supports up to 3 images.
-- Uploaded images are compressed in the browser to JPEG, maximum 1600px on the longest side, quality 0.78.
-- Images upload to Cloud Storage under `equipment-images/`.
+- Uploaded images are compressed in the browser to JPEG, maximum 900px on the longest side, quality 0.66.
+- Images are stored in Firestore as compressed data URLs to avoid requiring paid Firebase Storage.
 
-For production, also enforce the same admin rules in Firestore and Storage Security Rules. UI checks alone are not enough security.
+Firestore has a document size limit, so keep images as reference photos rather than full-resolution originals.
 
-Rule templates are included:
+Rule template:
 
 ```text
 firestore.rules
-storage.rules
 ```
 
-Replace the sample admin emails in those rule files before deploying rules.
+Replace the admin email in that rule file before deploying rules.
 
 ## Build
 
