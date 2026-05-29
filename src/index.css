@@ -1,0 +1,30 @@
+:root {
+  --accent: #286c80;
+  --field: #f7f4ec;
+  --ink: #172027;
+  --line: #dfd8ca;
+  --line-strong: #c7beae;
+  --muted: #687078;
+  --paper: #fffdf8;
+  --text: #343b42;
+  background: #ece7dc;
+  color: var(--text);
+  font-family:
+    Avenir Next,
+    Aptos,
+    Segoe UI,
+    sans-serif;
+  font-synthesis: none;
+  line-height: 1.45;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
