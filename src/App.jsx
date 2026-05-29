@@ -125,18 +125,23 @@ function fileToDataUrl(file) {
 }
 
 function App() {
-  const [items, setItems] = useState(sampleInventory.map(normalizeItem))
-  const [options, setOptions] = useState(sampleSettings)
+  const [items, setItems] = useState(() =>
+    isFirebaseConfigured ? [] : sampleInventory.map(normalizeItem),
+  )
+  const [options, setOptions] = useState(() =>
+    isFirebaseConfigured ? { categories: [], locations: [] } : sampleSettings,
+  )
   const [user, setUser] = useState(null)
   const [queryText, setQueryText] = useState('')
   const [category, setCategory] = useState('All')
-  const [selectedId, setSelectedId] = useState(sampleInventory[0]?.id)
+  const [selectedId, setSelectedId] = useState(isFirebaseConfigured ? null : sampleInventory[0]?.id)
   const [activeModal, setActiveModal] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [imageFiles, setImageFiles] = useState([])
   const [imageInfo, setImageInfo] = useState('')
   const [notice, setNotice] = useState('')
+  const [inventoryLoaded, setInventoryLoaded] = useState(!isFirebaseConfigured)
 
   const isLocalDemo = !isFirebaseConfigured
   const isAdmin =
@@ -161,8 +166,12 @@ function App() {
         )
         setItems(nextItems)
         setSelectedId((currentId) => currentId || nextItems[0]?.id)
+        setInventoryLoaded(true)
       },
-      (error) => setNotice(`Firebase 讀取失敗：${error.message}`),
+      (error) => {
+        setInventoryLoaded(true)
+        setNotice(`Firebase 讀取失敗：${error.message}`)
+      },
     )
   }, [])
 
@@ -440,28 +449,36 @@ function App() {
             <span>點選項目查看規格</span>
           </div>
           <div className="equipment-list">
-            {filteredItems.map((item) => (
-              <button
-                className={`equipment-row ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
-                key={item.id}
-                type="button"
-                onClick={() => setSelectedId(item.id)}
-              >
-                {item.imageUrls[0] ? (
-                  <img src={item.imageUrls[0]} alt={item.name} />
-                ) : (
-                  <ImageIcon size={32} />
-                )}
-                <span>
-                  <strong>{item.name}</strong>
-                  <small>
-                    {item.brand} {item.model}
-                  </small>
-                </span>
-                <small>{item.category}</small>
-                <b>{item.quantity}</b>
-              </button>
-            ))}
+            {!inventoryLoaded ? (
+              <div className="list-state">正在讀取 Firebase 資料...</div>
+            ) : null}
+            {inventoryLoaded && filteredItems.length === 0 ? (
+              <div className="list-state">暫時沒有器材資料。</div>
+            ) : null}
+            {inventoryLoaded
+              ? filteredItems.map((item) => (
+                  <button
+                    className={`equipment-row ${selectedItem?.id === item.id ? 'is-selected' : ''}`}
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    {item.imageUrls[0] ? (
+                      <img src={item.imageUrls[0]} alt={item.name} />
+                    ) : (
+                      <ImageIcon size={32} />
+                    )}
+                    <span>
+                      <strong>{item.name}</strong>
+                      <small>
+                        {item.brand} {item.model}
+                      </small>
+                    </span>
+                    <small>{item.category}</small>
+                    <b>{item.quantity}</b>
+                  </button>
+                ))
+              : null}
           </div>
         </section>
 

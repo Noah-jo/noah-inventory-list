@@ -231,6 +231,12 @@ textarea:focus {
   display: grid;
 }
 
+.list-state {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 22px 16px;
+}
+
 .equipment-row {
   align-items: center;
   background: transparent;
