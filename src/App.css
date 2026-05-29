@@ -238,15 +238,15 @@ textarea:focus {
 }
 
 .equipment-row {
-  align-items: center;
+  align-items: start;
   background: transparent;
   border: 0;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   display: grid;
   gap: 12px;
-  grid-template-columns: 58px 1fr 90px 30px;
-  min-height: 82px;
+  grid-template-columns: 58px minmax(0, 1fr) minmax(68px, 90px) 30px;
+  min-height: 92px;
   padding: 12px 14px;
   text-align: left;
 }
@@ -258,8 +258,9 @@ textarea:focus {
 
 .equipment-row img {
   aspect-ratio: 1;
+  background: #fff;
   border-radius: 8px;
-  object-fit: cover;
+  object-fit: contain;
   width: 58px;
 }
 
@@ -269,11 +270,16 @@ textarea:focus {
   min-width: 0;
 }
 
-.equipment-row strong,
+.equipment-row strong {
+  line-height: 1.28;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .equipment-row small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .equipment-row small {
@@ -300,14 +306,32 @@ textarea:focus {
 }
 
 .detail-image-wrap {
-  background: #d9ddd7;
+  align-items: center;
+  background: #fff;
+  display: flex;
+  justify-content: center;
   position: relative;
 }
 
 .detail-image-wrap img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
+}
+
+.zoom-button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  bottom: 14px;
+  color: var(--ink);
+  display: inline-flex;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  position: absolute;
+  right: 14px;
 }
 
 .image-thumbs {
@@ -319,7 +343,7 @@ textarea:focus {
 }
 
 .image-thumbs button {
-  background: transparent;
+  background: #fff;
   border: 2px solid rgba(255, 255, 255, 0.74);
   border-radius: 8px;
   height: 54px;
@@ -335,7 +359,7 @@ textarea:focus {
 
 .image-thumbs img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -343,6 +367,11 @@ textarea:focus {
   display: grid;
   gap: 18px;
   padding: 22px;
+}
+
+.detail-copy h2 {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .spec-grid {
@@ -502,18 +531,31 @@ textarea:focus {
   overflow: hidden;
 }
 
-.existing-images img {
-  aspect-ratio: 4 / 3;
+.image-preview-button {
+  background: #fff;
+  border: 0;
   display: block;
-  object-fit: cover;
+  padding: 0;
   width: 100%;
 }
 
-.existing-images button {
+.image-preview-button img,
+.existing-images img {
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: contain;
+  width: 100%;
+}
+
+.remove-image-button {
+  align-items: center;
   background: #fff;
   border: 0;
   border-top: 1px solid var(--line);
   color: #9a3412;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
   min-height: 34px;
   width: 100%;
 }
@@ -533,6 +575,41 @@ textarea:focus {
 .editor-actions {
   border-top: 1px solid var(--line);
   padding-top: 16px;
+}
+
+.lightbox-backdrop {
+  align-items: center;
+  background: rgba(17, 24, 31, 0.72);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 20;
+}
+
+.lightbox {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  max-height: calc(100vh - 48px);
+  max-width: min(1120px, calc(100vw - 48px));
+  padding: 14px;
+  position: relative;
+}
+
+.lightbox img {
+  display: block;
+  max-height: calc(100vh - 92px);
+  max-width: calc(100vw - 76px);
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 1;
 }
 
 @media (max-width: 1180px) {

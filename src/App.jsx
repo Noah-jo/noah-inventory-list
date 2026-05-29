@@ -27,6 +27,7 @@ import {
   Trash2,
   Upload,
   X,
+  ZoomIn,
 } from 'lucide-react'
 import {
   adminEmails,
@@ -124,6 +125,14 @@ function fileToDataUrl(file) {
   })
 }
 
+function makePendingImage(file) {
+  return {
+    file,
+    id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+    previewUrl: URL.createObjectURL(file),
+  }
+}
+
 function App() {
   const [items, setItems] = useState(() =>
     isFirebaseConfigured ? [] : sampleInventory.map(normalizeItem),
@@ -138,10 +147,11 @@ function App() {
   const [activeModal, setActiveModal] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [form, setForm] = useState(emptyForm)
-  const [imageFiles, setImageFiles] = useState([])
+  const [pendingImages, setPendingImages] = useState([])
   const [imageInfo, setImageInfo] = useState('')
   const [notice, setNotice] = useState('')
   const [inventoryLoaded, setInventoryLoaded] = useState(!isFirebaseConfigured)
+  const [lightboxImage, setLightboxImage] = useState(null)
 
   const isLocalDemo = !isFirebaseConfigured
   const isAdmin =
@@ -165,7 +175,7 @@ function App() {
           normalizeItem({ id: documentSnapshot.id, ...documentSnapshot.data() }),
         )
         setItems(nextItems)
-        setSelectedId((currentId) => currentId || nextItems[0]?.id)
+        setSelectedId((currentId) => currentId || nextItems[0]?.id || null)
         setInventoryLoaded(true)
       },
       (error) => {
@@ -214,11 +224,19 @@ function App() {
     return { totalItems: items.length, totalQuantity, locations }
   }, [items])
 
+  function clearPendingImages() {
+    setPendingImages((current) => {
+      current.forEach((image) => URL.revokeObjectURL(image.previewUrl))
+      return []
+    })
+  }
+
   async function login() {
     if (!isFirebaseConfigured) {
       setNotice('目前是本地示範模式，管理功能已開放測試。')
       return
     }
+
     try {
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
@@ -241,7 +259,7 @@ function App() {
   function openNewItem() {
     setEditingItem(null)
     setForm(emptyForm)
-    setImageFiles([])
+    clearPendingImages()
     setImageInfo('')
     setActiveModal('editor')
   }
@@ -249,9 +267,14 @@ function App() {
   function openEditItem(item) {
     setEditingItem(item)
     setForm(normalizeItem(item))
-    setImageFiles([])
+    clearPendingImages()
     setImageInfo('')
     setActiveModal('editor')
+  }
+
+  function closeEditor() {
+    clearPendingImages()
+    setActiveModal(null)
   }
 
   function updateForm(field, value) {
@@ -263,6 +286,14 @@ function App() {
       ...current,
       imageUrls: current.imageUrls.filter((candidate) => candidate !== imageUrl),
     }))
+  }
+
+  function removePendingImage(imageId) {
+    setPendingImages((current) => {
+      const target = current.find((image) => image.id === imageId)
+      if (target) URL.revokeObjectURL(target.previewUrl)
+      return current.filter((image) => image.id !== imageId)
+    })
   }
 
   async function persistOptions(nextOptions) {
@@ -284,27 +315,27 @@ function App() {
   }
 
   function handleImageFiles(files) {
-    const nextFiles = Array.from(files || []).slice(0, maxImages)
-    const remainingSlots = maxImages - form.imageUrls.length
+    const nextFiles = Array.from(files || [])
+    const remainingSlots = maxImages - form.imageUrls.length - pendingImages.length
     const acceptedFiles = nextFiles.slice(0, Math.max(remainingSlots, 0))
-    setImageFiles(acceptedFiles)
+    setPendingImages((current) => [...current, ...acceptedFiles.map(makePendingImage)])
 
     if (nextFiles.length > acceptedFiles.length) {
-      setImageInfo(`每項器材最多 ${maxImages} 張圖片，已只保留可加入的圖片。`)
+      setImageInfo(`每項器材最多 ${maxImages} 張圖片，已只加入可加入的圖片。`)
     } else {
-      setImageInfo(acceptedFiles.length ? `已選擇 ${acceptedFiles.length} 張圖片，儲存時會壓縮上載。` : '')
+      setImageInfo(acceptedFiles.length ? `已加入 ${acceptedFiles.length} 張圖片，儲存時會壓縮。` : '')
     }
   }
 
   async function uploadImagesIfNeeded() {
-    if (imageFiles.length === 0) return form.imageUrls.slice(0, maxImages)
+    if (pendingImages.length === 0) return form.imageUrls.slice(0, maxImages)
 
     const compressedFiles = []
-    for (const file of imageFiles) {
-      compressedFiles.push(await compressImage(file))
+    for (const image of pendingImages) {
+      compressedFiles.push(await compressImage(image.file))
     }
 
-    const originalSize = imageFiles.reduce((sum, file) => sum + file.size, 0)
+    const originalSize = pendingImages.reduce((sum, image) => sum + image.file.size, 0)
     const compressedSize = compressedFiles.reduce((sum, file) => sum + file.size, 0)
     setImageInfo(
       `圖片已壓縮：${Math.round(originalSize / 1024)}KB -> ${Math.round(compressedSize / 1024)}KB`,
@@ -360,6 +391,7 @@ function App() {
       await persistOptions(nextOptions)
     }
 
+    clearPendingImages()
     setActiveModal(null)
   }
 
@@ -492,21 +524,24 @@ function App() {
           key={selectedItem?.id || 'empty-detail'}
           onDelete={(item) => requireAdmin(() => handleDelete(item))}
           onEdit={(item) => requireAdmin(() => openEditItem(item))}
+          onOpenImage={setLightboxImage}
         />
       </section>
 
       {activeModal === 'editor' ? (
         <Editor
           form={form}
-          imageFiles={imageFiles}
           imageInfo={imageInfo}
           isEditing={Boolean(editingItem)}
           maxImages={maxImages}
-          onClose={() => setActiveModal(null)}
+          onClose={closeEditor}
           onImageChange={handleImageFiles}
+          onOpenImage={setLightboxImage}
           onRemoveImage={removeExistingImage}
+          onRemovePendingImage={removePendingImage}
           onSave={handleSave}
           options={options}
+          pendingImages={pendingImages}
           updateForm={updateForm}
         />
       ) : null}
@@ -520,6 +555,10 @@ function App() {
             setActiveModal(null)
           }}
         />
+      ) : null}
+
+      {lightboxImage ? (
+        <ImageLightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       ) : null}
     </main>
   )
@@ -535,7 +574,7 @@ function Metric({ icon, label, value }) {
   )
 }
 
-function DetailPanel({ isAdmin, item, onEdit, onDelete }) {
+function DetailPanel({ isAdmin, item, onEdit, onDelete, onOpenImage }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0)
 
   if (!item) {
@@ -548,6 +587,16 @@ function DetailPanel({ isAdmin, item, onEdit, onDelete }) {
     <section className="detail-panel" aria-label="Equipment details">
       <div className="detail-image-wrap">
         {activeImageUrl ? <img src={activeImageUrl} alt={item.name} /> : <ImageIcon size={54} />}
+        {activeImageUrl ? (
+          <button
+            className="zoom-button"
+            type="button"
+            onClick={() => onOpenImage({ alt: item.name, src: activeImageUrl })}
+          >
+            <ZoomIn size={17} />
+            放大
+          </button>
+        ) : null}
         {item.imageUrls.length > 1 ? (
           <div className="image-thumbs">
             {item.imageUrls.map((imageUrl, index) => (
@@ -613,18 +662,20 @@ function Spec({ label, value }) {
 
 function Editor({
   form,
-  imageFiles,
   imageInfo,
   isEditing,
   maxImages,
   onClose,
   onImageChange,
+  onOpenImage,
   onRemoveImage,
+  onRemovePendingImage,
   onSave,
   options,
+  pendingImages,
   updateForm,
 }) {
-  const remainingSlots = maxImages - form.imageUrls.length
+  const remainingSlots = maxImages - form.imageUrls.length - pendingImages.length
 
   return (
     <div className="editor-backdrop" role="presentation">
@@ -676,17 +727,48 @@ function Editor({
                 disabled={remainingSlots <= 0}
                 multiple
                 type="file"
-                onChange={(event) => onImageChange(event.target.files)}
+                onChange={(event) => {
+                  onImageChange(event.target.files)
+                  event.target.value = ''
+                }}
               />
             </span>
           </label>
           <div className="span-2 image-editor">
-            {form.imageUrls.length ? (
+            {form.imageUrls.length || pendingImages.length ? (
               <div className="existing-images">
                 {form.imageUrls.map((imageUrl, index) => (
                   <div key={imageUrl}>
-                    <img src={imageUrl} alt={`現有圖片 ${index + 1}`} />
-                    <button type="button" onClick={() => onRemoveImage(imageUrl)}>
+                    <button
+                      className="image-preview-button"
+                      type="button"
+                      onClick={() => onOpenImage({ alt: `現有圖片 ${index + 1}`, src: imageUrl })}
+                    >
+                      <img src={imageUrl} alt={`現有圖片 ${index + 1}`} />
+                    </button>
+                    <button className="remove-image-button" type="button" onClick={() => onRemoveImage(imageUrl)}>
+                      <X size={14} />
+                      移除
+                    </button>
+                  </div>
+                ))}
+                {pendingImages.map((image, index) => (
+                  <div key={image.id}>
+                    <button
+                      className="image-preview-button"
+                      type="button"
+                      onClick={() =>
+                        onOpenImage({ alt: `待上載圖片 ${index + 1}`, src: image.previewUrl })
+                      }
+                    >
+                      <img src={image.previewUrl} alt={`待上載圖片 ${index + 1}`} />
+                    </button>
+                    <button
+                      className="remove-image-button"
+                      type="button"
+                      onClick={() => onRemovePendingImage(image.id)}
+                    >
+                      <X size={14} />
                       移除
                     </button>
                   </div>
@@ -694,8 +776,8 @@ function Editor({
               </div>
             ) : null}
             <p>
-              已有 {form.imageUrls.length} 張，待上載 {imageFiles.length} 張，尚可加入{' '}
-              {Math.max(maxImages - form.imageUrls.length - imageFiles.length, 0)} 張。
+              已有 {form.imageUrls.length} 張，待上載 {pendingImages.length} 張，尚可加入{' '}
+              {Math.max(maxImages - form.imageUrls.length - pendingImages.length, 0)} 張。
             </p>
           </div>
           {imageInfo ? <p className="image-info span-2">{imageInfo}</p> : null}
@@ -791,6 +873,19 @@ function SettingsModal({ onClose, onSave, options }) {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+function ImageLightbox({ image, onClose }) {
+  return (
+    <div className="lightbox-backdrop" role="presentation" onClick={onClose}>
+      <div className="lightbox" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <button className="icon-button lightbox-close" type="button" onClick={onClose} aria-label="Close image">
+          <X size={20} />
+        </button>
+        <img src={image.src} alt={image.alt || '器材圖片'} />
+      </div>
     </div>
   )
 }
