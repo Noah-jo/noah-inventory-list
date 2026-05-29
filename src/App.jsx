@@ -11,7 +11,7 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
+import { getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'firebase/auth'
 import {
   Boxes,
   Edit3,
@@ -155,6 +155,14 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!isFirebaseConfigured) return
+
+    getRedirectResult(auth).catch((error) => {
+      setNotice(`登入失敗：${error.code || error.message}`)
+    })
+  }, [])
+
+  useEffect(() => {
     if (!isFirebaseConfigured) return undefined
 
     const inventoryQuery = query(collection(db, 'equipment'), orderBy('updatedAt', 'desc'))
@@ -219,7 +227,11 @@ function App() {
       setNotice('目前是本地示範模式，管理功能已開放測試。')
       return
     }
-    await signInWithPopup(auth, googleProvider)
+    try {
+      await signInWithRedirect(auth, googleProvider)
+    } catch (error) {
+      setNotice(`登入失敗：${error.code || error.message}`)
+    }
   }
 
   async function logout() {
